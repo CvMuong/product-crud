@@ -2,8 +2,19 @@ const Product = require('../models/Product');
 
 exports.getAllProducts = async (req, res, next) => {
     try {
-        const products = await Product.find();
-        res.json(products);
+        const page = req.query.page || 1;
+        const limit = req.query.limit || 10;
+        const skip = (page - 1) * limit;
+
+        const total = await Product.countDocuments();
+        const products = await Product.find().skip(skip).limit(limit).sort({ createdAt: -1});
+
+        res.json({
+            totalItems: total,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            data: products
+        });
     } catch (error) {
         next(error)
     }

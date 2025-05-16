@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 exports.register = async (req, res, next) => {
@@ -14,11 +15,11 @@ exports.register = async (req, res, next) => {
             return next(error);
         }
 
-        const hashPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         const newUser = await User.create({
             username,
-            password: hashPassword
+            password: hashedPassword
         });
 
         res.status(201).json({
@@ -29,3 +30,36 @@ exports.register = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.login = async (req, res, next) => {
+    try {
+        const { username, password } = req.body;
+
+        const user = await User.findOne({ username });
+
+        if (!user) {
+            const error = new Error('Invalid username or password!');
+            error.status = 401;
+            return next(error);
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            const error = new Error('Invalid username or password!');
+            error.status = 401;
+            return next(error);
+        }
+
+        const payload = {
+            userId: user._id,
+            username: user.username
+        }
+
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h'});
+
+        res.json({ token, expiresIn: '1h' })
+    } catch (error) {
+        next(error);
+    }
+}
